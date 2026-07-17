@@ -1,0 +1,28 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "me.Thelnfamous1.bettermobcombat.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "EnchantmentMixin",
+    "LivingEntityMixin",
+    "MeleeAttackGoalMixin",
+    "MeleeAttackMixin",
+    "MobAccessor",
+    "MobMixin_AttackAnimation",
+    "MobMixin_AttackLogic",
+    "RangedWeaponItemMixin",
+    "ServerNetworkAccessor"
+  ],
+  "client": [
+    "client.EntityRenderDispatcherMixin",
+    "client.IllagerModelMixin",
+    "client.ItemInHandLayerMixin_EvokerRenderer",
+    "client.ItemInHandLayerMixin_IllusionerRenderer",
+    "client.ItemInHandLayerMixin_VindicatorRenderer"
+  ],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

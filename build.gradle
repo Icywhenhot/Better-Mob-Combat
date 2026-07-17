@@ -1,93 +1,133 @@
 plugins {
-    id 'fabric-loom' version '1.7-SNAPSHOT' apply(false)
-    id 'net.minecraftforge.gradle' version '[6.0,6.2)' apply(false)
-    id 'org.spongepowered.gradle.vanilla' version '0.2.1-SNAPSHOT' apply(false)
-    id("org.spongepowered.mixin") version "0.7-SNAPSHOT" apply(false)
+    id 'java'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.141'
 }
 
-subprojects {
-    apply plugin: 'java'
+version = project.version
+group = project.group
 
-    java.toolchain.languageVersion = JavaLanguageVersion.of(17)
-    java.withSourcesJar()
-    java.withJavadocJar()
-        
-    jar {
-        from(rootProject.file("LICENSE")) {
-            rename { "${it}_${mod_name}" }
+base {
+    archivesName = "${mod_id}-neoforge-${minecraft_version}"
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.neoforged.net/releases' }
+    maven { url = 'https://maven.kosmx.dev/' }
+    maven { url = 'https://maven.shedaniel.me/' }
+    maven { url = 'https://api.modrinth.com/maven' }
+    maven {
+        name = 'GeckoLib'
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content {
+            includeGroupByRegex("software\\.bernie.*")
+            includeGroup("com.eliotlash.mclib")
         }
-        manifest {
-            attributes([
-                'Specification-Title'     : mod_name,
-                'Specification-Vendor'    : mod_author,
-                'Specification-Version'   : project.jar.archiveVersion,
-                'Implementation-Title'    : project.name,
-                'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : mod_author,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                'Timestamp'               : System.currentTimeMillis(),
-                'Built-On-Java'           : "${System.getProperty('java.vm.version')} (${System.getProperty('java.vm.vendor')})",
-                'Built-On-Minecraft'      : minecraft_version
-            ])
+    }
+    maven { url = 'https://maven.blamejared.com' }
+    maven {
+        name = 'CurseMaven'
+        url = 'https://cursemaven.com'
+        content { includeGroup "curse.maven" }
+    }
+    flatDir { dirs 'lib' }
+}
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        minecraftVersion = project.parchment_minecraft_version
+        mappingsVersion = project.parchment_mappings_version
+    }
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+        }
+        data {
+            data()
+            programArguments.addAll '--mod', project.mod_id, '--all',
+                    '--output', file('src/generated/resources/').getAbsolutePath(),
+                    '--existing', file('src/main/resources/').getAbsolutePath()
         }
     }
 
-    sourcesJar {
-        from(rootProject.file("LICENSE")) {
-            rename { "${it}_${mod_name}" }
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
         }
     }
+}
 
+dependencies {
+    // Core dependencies from local lib/ (Modrinth's maven POM endpoint and some maven hosts are unreliable
+    // in this environment; the jars are pulled straight from the reliable Modrinth CDN into lib/). All are
+    // NeoForge-loadable mod jars.
+    implementation files('lib/bettercombat-neoforge-2.0.4+1.21.1.jar')
+    implementation files('lib/player-animation-lib-forge-2.0.4+1.21.1.jar')
+    implementation files('lib/cloth-config-15.0.140-neoforge.jar')
+
+    // MixinExtras is bundled by NeoForge (mixinextras-neoforge is on the compile classpath transitively).
+
+    // GeckoLib compat: compile-time only (optional runtime mod)
+    compileOnly files('lib/geckolib-neoforge-1.21.1-4.9.2.jar')
+
+    compileOnly "org.jetbrains:annotations:24.1.0"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+// Expand tokens in mod metadata
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version            : minecraft_version,
+            minecraft_version_range      : minecraft_version_range,
+            neo_version_range            : neo_version_range,
+            loader_version_range         : loader_version_range,
+            mod_id                       : mod_id,
+            mod_name                     : mod_name,
+            mod_license                  : mod_license,
+            mod_version                  : version,
+            mod_author                   : mod_author,
+            mod_description              : mod_description,
+            mod_credits                  : mod_credits,
+            better_combat_version_range  : better_combat_version_range,
+            player_anim_version_range    : player_anim_version_range,
+            mob_player_anim_version_range: mob_player_anim_version_range,
+            cloth_config_version_range   : cloth_config_version_range,
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties
+    }
+}
+
+sourceSets.main.resources.srcDir 'src/generated/resources'
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            artifactId base.archivesName.get()
+            from components.java
+        }
+    }
     repositories {
-        mavenCentral()
         maven {
-            name = 'Sponge / Mixin'
-            url = 'https://repo.spongepowered.org/repository/maven-public/'
+            url "file://${System.getenv("local_maven") ?: layout.buildDirectory.dir('repo').get().asFile}"
         }
-        maven {
-            name = 'BlameJared Maven (JEI / CraftTweaker / Bookshelf)'
-            url = 'https://maven.blamejared.com'
-        }
-    }
-
-    tasks.withType(JavaCompile).configureEach {
-    
-        it.options.encoding = 'UTF-8'
-        it.options.getRelease().set(17)
-    }
-
-    processResources {
-        def expandProps = [
-                "version": version,
-                "group": project.group, //Else we target the task's group.
-                "minecraft_version": minecraft_version,
-                "forge_version": forge_version,
-                "forge_loader_version_range": forge_loader_version_range,
-                "forge_version_range": forge_version_range,
-                "minecraft_version_range": minecraft_version_range,
-                "fabric_version": fabric_version,
-                "fabric_loader_version": fabric_loader_version,
-                "mod_name": mod_name,
-                "mod_author": mod_author,
-                "mod_id": mod_id,
-                "license": license,
-                "description": project.description,
-                "credits": credits,
-                "mob_player_anim_version_min": mob_player_anim_version_min,
-                "mob_player_anim_version_range": mob_player_anim_version_range,
-                "better_combat_version_min": better_combat_version_min,
-                "better_combat_version_range": better_combat_version_range,
-                "player_anim_version_min": player_anim_version_min,
-                "player_anim_version_range": player_anim_version_range,
-                "cloth_config_version_min": cloth_config_version_min,
-                "cloth_config_version_range": cloth_config_version_range,
-                "guard_villagers_version_range": guard_villagers_version_range,
-                "recruits_version_range": recruits_version_range
-        ]
-
-        filesMatching(['pack.mcmeta', 'fabric.mod.json', 'META-INF/mods.toml', '*.mixins.json']) {
-            expand expandProps
-        }
-        inputs.properties(expandProps)
     }
 }

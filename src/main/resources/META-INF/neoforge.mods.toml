@@ -1,0 +1,58 @@
+modLoader = "javafml"
+loaderVersion = "${loader_version_range}"
+license = "${mod_license}"
+issueTrackerURL = "https://github.com/Thelnfamous1/Better-Mob-Combat/issues"
+
+[[mods]]
+modId = "${mod_id}"
+version = "${mod_version}"
+displayName = "${mod_name}"
+authors = "${mod_author}"
+credits = "${mod_credits}"
+description = '''${mod_description}'''
+
+[[mixins]]
+config = "${mod_id}.mixins.json"
+
+[[dependencies.${mod_id}]]
+modId = "neoforge"
+type = "required"
+versionRange = "${neo_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "bettercombat"
+type = "required"
+versionRange = "${better_combat_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "playeranimator"
+type = "required"
+versionRange = "${player_anim_version_range}"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "cloth_config"
+type = "required"
+versionRange = "${cloth_config_version_range}"
+ordering = "AFTER"
+side = "BOTH"
+
+# Author's client-side companion mod. Optional so the mod still loads without it (mobs simply won't animate).
+[[dependencies.${mod_id}]]
+modId = "mobplayeranimator"
+type = "optional"
+versionRange = "${mob_player_anim_version_range}"
+ordering = "AFTER"
+side = "CLIENT"
