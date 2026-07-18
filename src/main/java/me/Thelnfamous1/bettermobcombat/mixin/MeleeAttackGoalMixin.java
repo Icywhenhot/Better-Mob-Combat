@@ -18,7 +18,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MeleeAttackGoal.class)
 public abstract class MeleeAttackGoalMixin extends Goal {
@@ -27,15 +26,9 @@ public abstract class MeleeAttackGoalMixin extends Goal {
 
     @Shadow private int ticksUntilNextAttack;
 
-    @Inject(method = "canUse", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/ai/goal/MeleeAttackGoal;getAttackReachSqr(Lnet/minecraft/world/entity/LivingEntity;)D"), cancellable = true)
-    private void pre_getAttackReachSqr_canUse(CallbackInfoReturnable<Boolean> cir){
-        MobCombatHelper.onHoldingBetterCombatWeapon(this.mob, (m, wa) -> {
-            AttackHand currentAttack = ((EntityPlayer_BetterCombat)m).getCurrentAttack();
-            if(currentAttack != null){
-                cir.setReturnValue(MobCombatHelper.isWithinAttackRange(m, m.getTarget(), currentAttack.attack(), wa.attackRange()));
-            }
-        });
-    }
+    // Note: 1.21's MeleeAttackGoal#canUse no longer computes an attack reach (the old getAttackReachSqr was
+    // removed), so the canUse range refinement is dropped; Better Combat range is still enforced when the
+    // attack is actually performed via the checkAndPerformAttack override below.
 
     // This fixes a weird bug with instances that have the field set to true, which causes them to be unable to attack when very close to the target
     @WrapOperation(method = "canContinueToUse", at = @At(value = "FIELD", target = "Lnet/minecraft/world/entity/ai/goal/MeleeAttackGoal;followingTargetEvenIfNotSeen:Z", opcode = 180 /*GETFIELD*/))
@@ -50,8 +43,8 @@ public abstract class MeleeAttackGoalMixin extends Goal {
         return false;
     }
 
-    @WrapWithCondition(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/ai/goal/MeleeAttackGoal;checkAndPerformAttack(Lnet/minecraft/world/entity/LivingEntity;D)V"))
-    private boolean pre_checkAndPerformAttack(MeleeAttackGoal goal, LivingEntity target, double distance){
+    @WrapWithCondition(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/ai/goal/MeleeAttackGoal;checkAndPerformAttack(Lnet/minecraft/world/entity/LivingEntity;)V"))
+    private boolean pre_checkAndPerformAttack(MeleeAttackGoal goal, LivingEntity target){
         return bettermobcombat$allowCheckAndPerformAttackCall(target);
     }
 
@@ -90,7 +83,7 @@ public abstract class MeleeAttackGoalMixin extends Goal {
             at = @At("HEAD"),
             cancellable = true
     )
-    private void pre_checkAndPerformAttack(LivingEntity target, double $$1, CallbackInfo ci) {
+    private void pre_checkAndPerformAttack(LivingEntity target, CallbackInfo ci) {
         if(this.bettermobcombat$useBetterCombatAttackCheck(target)){
             ci.cancel();
         }

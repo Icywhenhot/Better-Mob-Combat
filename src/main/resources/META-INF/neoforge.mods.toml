@@ -49,10 +49,26 @@ versionRange = "${cloth_config_version_range}"
 ordering = "AFTER"
 side = "BOTH"
 
-# Author's client-side companion mod. Optional so the mod still loads without it (mobs simply won't animate).
+# Author's client-side companion mod; provides the IAnimatedPlayer implementation for mobs. Required on the
+# client so mob attack animations work (and to fail fast rather than hit an AbstractMethodError if absent).
 [[dependencies.${mod_id}]]
 modId = "mobplayeranimator"
-type = "optional"
+type = "required"
 versionRange = "${mob_player_anim_version_range}"
 ordering = "AFTER"
 side = "CLIENT"
+
+# Optional third-party integrations (Better Mob Combat works without them; the @Pseudo mixins simply won't apply).
+[[dependencies.${mod_id}]]
+modId = "guardvillagers"
+type = "optional"
+versionRange = "[2.0.0,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "mca"
+type = "optional"
+versionRange = "*"
+ordering = "NONE"
+side = "BOTH"

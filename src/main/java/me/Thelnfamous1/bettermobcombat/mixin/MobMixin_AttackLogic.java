@@ -13,7 +13,7 @@ import me.Thelnfamous1.bettermobcombat.logic.MobAttackHelper;
 import me.Thelnfamous1.bettermobcombat.logic.MobCombatHelper;
 import me.Thelnfamous1.bettermobcombat.logic.MobTargetFinder;
 import me.Thelnfamous1.bettermobcombat.network.BMCNetwork;
-import net.bettercombat.BetterCombat;
+import net.bettercombat.BetterCombatMod;
 import net.bettercombat.api.AttackHand;
 import net.bettercombat.api.EntityPlayer_BetterCombat;
 import net.bettercombat.api.WeaponAttributes;
@@ -22,6 +22,8 @@ import net.bettercombat.logic.AnimatedHand;
 import net.bettercombat.logic.PlayerAttackProperties;
 import net.bettercombat.logic.WeaponRegistry;
 import net.bettercombat.utils.MathHelper;
+import net.minecraft.core.Holder;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -34,7 +36,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -49,9 +50,9 @@ public abstract class MobMixin_AttackLogic extends LivingEntity implements Entit
     @Unique
     private int bettermobcombat$comboCount = 0;
     @Unique
-    private Multimap<Attribute, AttributeModifier> bettermobcombat$dualWieldingAttributeMap;
+    private Multimap<Holder<Attribute>, AttributeModifier> bettermobcombat$dualWieldingAttributeMap;
     @Unique
-    private static final UUID bettermobcombat$DUAL_WIELDING_SPEED_MODIFIER_ID = UUID.fromString("6b364332-0dc4-11ed-861d-0242ac120002");
+    private static final ResourceLocation bettermobcombat$DUAL_WIELDING_SPEED_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath("bettermobcombat", "dual_wielding_speed");
     @Unique
     private AttackHand bettermobcombat$lastAttack;
     @Unique
@@ -135,7 +136,7 @@ public abstract class MobMixin_AttackLogic extends LivingEntity implements Entit
         if(BetterMobCombat.getServerConfigHelper().isBlacklistedForBetterCombat(this)){
             return;
         }
-        int downWind = (int) Math.round((double) MobAttackHelper.getAttackCooldownTicksCapped(((Mob) (Object) this)) * (1.0 - 0.5 * (double) BetterCombat.config.upswing_multiplier));
+        int downWind = (int) Math.round((double) MobAttackHelper.getAttackCooldownTicksCapped(((Mob) (Object) this)) * (1.0 - 0.5 * (double) BetterCombatMod.config.upswing_multiplier));
         BMCNetwork.stopMobAttackAnimation(this, downWind);
         this.bettermobcombat$upswingStack = null;
         this.bettermobcombat$setAttackCooldown(0);
@@ -233,8 +234,8 @@ public abstract class MobMixin_AttackLogic extends LivingEntity implements Entit
         if (newState != currentState) {
             if (newState) {
                 this.bettermobcombat$dualWieldingAttributeMap = HashMultimap.create();
-                double multiplier = BetterCombat.config.dual_wielding_attack_speed_multiplier - 1.0F;
-                this.bettermobcombat$dualWieldingAttributeMap.put(Attributes.ATTACK_SPEED, new AttributeModifier(bettermobcombat$DUAL_WIELDING_SPEED_MODIFIER_ID, "Dual wielding attack speed boost", multiplier, AttributeModifier.Operation.MULTIPLY_BASE));
+                double multiplier = BetterCombatMod.config.dual_wielding_attack_speed_multiplier - 1.0F;
+                this.bettermobcombat$dualWieldingAttributeMap.put(Attributes.ATTACK_SPEED, new AttributeModifier(bettermobcombat$DUAL_WIELDING_SPEED_MODIFIER_ID, multiplier, AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
                 mob.getAttributes().addTransientAttributeModifiers(this.bettermobcombat$dualWieldingAttributeMap);
             } else if (this.bettermobcombat$dualWieldingAttributeMap != null) {
                 mob.getAttributes().removeAttributeModifiers(this.bettermobcombat$dualWieldingAttributeMap);
@@ -254,12 +255,12 @@ public abstract class MobMixin_AttackLogic extends LivingEntity implements Entit
         if(BetterMobCombat.getServerConfigHelper().isBlacklistedForBetterCombat(this)){
             return;
         }
-        double multiplier = Math.min(Math.max(BetterCombat.config.movement_speed_while_attacking, 0.0), 1.0);
+        double multiplier = Math.min(Math.max(BetterCombatMod.config.movement_speed_while_attacking, 0.0), 1.0);
         if (multiplier != 1.0) {
-            if (!this.isPassenger() || BetterCombat.config.movement_speed_effected_while_mounting) {
+            if (!this.isPassenger() || BetterCombatMod.config.movement_speed_effected_while_mounting) {
                 float swingProgress = this.bettermobcombat$getSwingProgress();
                 if ((double)swingProgress < 0.98) {
-                    if (BetterCombat.config.movement_speed_applied_smoothly) {
+                    if (BetterCombatMod.config.movement_speed_applied_smoothly) {
                         double p2;
                         if ((double)swingProgress <= 0.5) {
                             p2 = MathHelper.easeOutCubic(swingProgress * 2.0F);
@@ -285,7 +286,7 @@ public abstract class MobMixin_AttackLogic extends LivingEntity implements Entit
             ordinal = 3
     )
     private boolean disableSweeping(boolean value) {
-        if (BetterCombat.config.allow_vanilla_sweeping) {
+        if (BetterCombatMod.config.allow_vanilla_sweeping) {
             return value;
         } else {
             Player player = (Player)this;
@@ -324,34 +325,14 @@ public abstract class MobMixin_AttackLogic extends LivingEntity implements Entit
         }
     }
 
-    @ModifyArg(
-            method = {"doHurtTarget"},
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/world/item/enchantment/EnchantmentHelper;getDamageBonus(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/MobType;)F"
-            ),
-            index = 0
-    )
-    private ItemStack modify_getDamageBonus_doHurtTarget(ItemStack heldItem) {
-        return this.bettermobcombat$getAlternateMainhandItem(heldItem);
-    }
-
-    @Unique
-    protected ItemStack bettermobcombat$getAlternateMainhandItem(ItemStack heldItem) {
-        Mob mob = (Mob) (Object) this;
-        AttackHand currentHand = MobAttackHelper.getCurrentAttack(mob, this.bettermobcombat$comboCount);
-        if (currentHand != null) {
-            return currentHand.isOffHand() ? mob.getOffhandItem() : heldItem;
-        } else {
-            return heldItem;
-        }
-    }
-
+    // 1.21's Mob#doHurtTarget resolves the attacking weapon through getWeaponItem() (which also drives the
+    // data-driven enchantment damage), replacing the old getMainHandItem() + EnchantmentHelper#getDamageBonus
+    // path. Wrapping getWeaponItem() lets a dual-wielding mob's off-hand attacks use the correct weapon.
     @WrapOperation(
             method = {"doHurtTarget"},
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/world/entity/Mob;getMainHandItem()Lnet/minecraft/world/item/ItemStack;"
+                    target = "Lnet/minecraft/world/entity/Mob;getWeaponItem()Lnet/minecraft/world/item/ItemStack;"
             )
     )
     private ItemStack wrap_getMainHandItem_doHurtTarget(Mob instance, Operation<ItemStack> original) {
@@ -426,7 +407,7 @@ public abstract class MobMixin_AttackLogic extends LivingEntity implements Entit
                 this.bettermobcombat$upswingStack = this.getMainHandItem();
                 float attackCooldownTicksFloat = MobAttackHelper.getAttackCooldownTicksCapped(((Mob) (Object) this));
                 int attackCooldownTicks = Math.round(attackCooldownTicksFloat);
-                this.bettermobcombat$comboReset = Math.round(attackCooldownTicksFloat * BetterCombat.config.combo_reset_rate);
+                this.bettermobcombat$comboReset = Math.round(attackCooldownTicksFloat * BetterCombatMod.config.combo_reset_rate);
                 this.bettermobcombat$upswingTicks = Math.max(Math.round(attackCooldownTicksFloat * upswingRate), 1);
                 this.bettermobcombat$lastSwingDuration = attackCooldownTicksFloat;
                 this.bettermobcombat$setAttackCooldown(attackCooldownTicks + BetterMobCombat.getServerConfig().mob_additional_attack_cooldown);
@@ -467,8 +448,10 @@ public abstract class MobMixin_AttackLogic extends LivingEntity implements Entit
             ItemStack activeWeapon = !this.level().isClientSide && this.getComboCount() > 0 && MobAttackHelper.shouldAttackWithOffHand(this, this.getComboCount()) ?
                     this.getOffhandItem():
                     this.getMainHandItem();
-            Collection<AttributeModifier> speedMods = activeWeapon.getAttributeModifiers(EquipmentSlot.MAINHAND).get(Attributes.ATTACK_SPEED);
-            attackSpeed = MobCombatHelper.calculateAttributeValue(Attributes.ATTACK_SPEED, Attributes.ATTACK_SPEED.getDefaultValue(), speedMods);
+            Multimap<Holder<Attribute>, AttributeModifier> weaponModifiers = HashMultimap.create();
+            activeWeapon.forEachModifier(EquipmentSlot.MAINHAND, weaponModifiers::put);
+            Collection<AttributeModifier> speedMods = weaponModifiers.get(Attributes.ATTACK_SPEED);
+            attackSpeed = MobCombatHelper.calculateAttributeValue(Attributes.ATTACK_SPEED, Attributes.ATTACK_SPEED.value().getDefaultValue(), speedMods);
         }
         return (float) (1.0D / attackSpeed * 20.0D);
     }

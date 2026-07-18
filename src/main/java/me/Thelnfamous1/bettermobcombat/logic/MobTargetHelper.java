@@ -2,6 +2,7 @@ package me.Thelnfamous1.bettermobcombat.logic;
 
 import me.Thelnfamous1.bettermobcombat.BetterMobCombat;
 import net.bettercombat.logic.TargetHelper;
+import net.minecraft.core.Holder;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.*;
@@ -39,8 +40,9 @@ public class MobTargetHelper {
                     return TargetHelper.Relation.FRIENDLY;
                 } else if(BetterMobCombat.getServerConfig().mobs_check_for_same_entity_type && attacker.getType().equals(target.getType())){
                     return TargetHelper.Relation.FRIENDLY;
-                } else if(BetterMobCombat.getServerConfig().mobs_check_for_same_mob_type && !attacker.getMobType().equals(MobType.UNDEFINED)
-                        && target instanceof LivingEntity livingTarget && attacker.getMobType().equals(livingTarget.getMobType())){
+                } else if(BetterMobCombat.getServerConfig().mobs_check_for_same_mob_type
+                        && target instanceof LivingEntity livingTarget
+                        && sharesMobTypeTag(attacker, livingTarget)){
                     return TargetHelper.Relation.FRIENDLY;
                 } else {
                     TargetHelper.Relation relationToTarget = BetterMobCombat.getServerConfigHelper().getMobRelation(attacker.getType(), target.getType());
@@ -56,5 +58,25 @@ public class MobTargetHelper {
                 }
             }
         }
+    }
+
+    /**
+     * Replacement for the pre-1.20.5 {@code LivingEntity#getMobType()} comparison, which was removed when
+     * mob types became data-driven entity type tags. Two entities are treated as the same "mob type" when they
+     * both belong to the same vanilla creature-type tag (undead / arthropod / illager / aquatic).
+     */
+    private static boolean sharesMobTypeTag(LivingEntity attacker, LivingEntity target) {
+        TagKey<EntityType<?>> attackerTag = getMobTypeTag(attacker);
+        return attackerTag != null && attackerTag.equals(getMobTypeTag(target));
+    }
+
+    @Nullable
+    private static TagKey<EntityType<?>> getMobTypeTag(Entity entity) {
+        Holder<EntityType<?>> holder = entity.getType().builtInRegistryHolder();
+        if (holder.is(EntityTypeTags.UNDEAD)) return EntityTypeTags.UNDEAD;
+        if (holder.is(EntityTypeTags.ARTHROPOD)) return EntityTypeTags.ARTHROPOD;
+        if (holder.is(EntityTypeTags.ILLAGER)) return EntityTypeTags.ILLAGER;
+        if (holder.is(EntityTypeTags.AQUATIC)) return EntityTypeTags.AQUATIC;
+        return null;
     }
 }

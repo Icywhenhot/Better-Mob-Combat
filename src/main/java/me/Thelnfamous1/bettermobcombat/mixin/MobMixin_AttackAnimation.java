@@ -1,8 +1,10 @@
 package me.Thelnfamous1.bettermobcombat.mixin;
 
+import dev.kosmx.playerAnim.api.IPlayable;
 import dev.kosmx.playerAnim.api.firstPerson.FirstPersonConfiguration;
 import dev.kosmx.playerAnim.api.firstPerson.FirstPersonMode;
 import dev.kosmx.playerAnim.api.layered.AnimationStack;
+import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
 import dev.kosmx.playerAnim.api.layered.IAnimation;
 import dev.kosmx.playerAnim.api.layered.KeyframeAnimationPlayer;
 import dev.kosmx.playerAnim.api.layered.modifier.AbstractFadeModifier;
@@ -19,9 +21,9 @@ import net.bettercombat.api.WeaponAttributes;
 import net.bettercombat.client.animation.*;
 import net.bettercombat.client.animation.modifier.HarshAdjustmentModifier;
 import net.bettercombat.client.animation.modifier.TransmissionSpeedModifier;
-import net.bettercombat.compatibility.CompatibilityFlags;
 import net.bettercombat.logic.AnimatedHand;
 import net.bettercombat.logic.WeaponRegistry;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -166,14 +168,14 @@ public abstract class MobMixin_AttackAnimation extends LivingEntity implements P
             KeyframeAnimation newMainHandPose = null;
             WeaponAttributes mainHandAttributes = WeaponRegistry.getAttributes(mainHandStack);
             if (mainHandAttributes != null && mainHandAttributes.pose() != null) {
-                newMainHandPose = AnimationRegistry.animations.get(mainHandAttributes.pose());
+                newMainHandPose = bettermobcombat$getAnimation(mainHandAttributes.pose());
             }
 
             KeyframeAnimation newOffHandPose = null;
             if (MobAttackHelper.isDualWielding((Mob) (Object) this)) {
                 WeaponAttributes offHandAttributes = WeaponRegistry.getAttributes(this.getOffhandItem());
                 if (offHandAttributes != null && offHandAttributes.offHandPose() != null) {
-                    newOffHandPose = AnimationRegistry.animations.get(offHandAttributes.offHandPose());
+                    newOffHandPose = bettermobcombat$getAnimation(offHandAttributes.offHandPose());
                 }
             }
 
@@ -224,13 +226,31 @@ public abstract class MobMixin_AttackAnimation extends LivingEntity implements P
         return !this.isDeadOrDying() && (this.isSwimming() || this.getDeltaMovement().horizontalDistance() > 0.03);
     }
 
+    /**
+     * Better Combat 2.x (1.21) dropped its own {@code AnimationRegistry} in favour of Player Animator's
+     * resource-loaded {@link PlayerAnimationRegistry}, keyed by {@link ResourceLocation}. Pose/animation names
+     * are namespaced ids, so resolve them through that registry and narrow to a keyframe animation.
+     */
+    @Unique
+    private static KeyframeAnimation bettermobcombat$getAnimation(String name) {
+        if (name == null) {
+            return null;
+        }
+        ResourceLocation id = ResourceLocation.tryParse(name);
+        if (id == null) {
+            return null;
+        }
+        IPlayable playable = PlayerAnimationRegistry.getAnimation(id);
+        return playable instanceof KeyframeAnimation keyframeAnimation ? keyframeAnimation : null;
+    }
+
     @Override
     public void playAttackAnimation(String name, AnimatedHand animatedHand, float length, float upswing) {
         if(!this.level().isClientSide){
             return;
         }
         try {
-            KeyframeAnimation animation = AnimationRegistry.animations.get(name);
+            KeyframeAnimation animation = bettermobcombat$getAnimation(name);
             KeyframeAnimation.AnimationBuilder copy = animation.mutableCopy();
             this.bettermobcombat$updateAnimationByCurrentActivity(copy);
             copy.torso.fullyEnablePart(true);
@@ -248,7 +268,8 @@ public abstract class MobMixin_AttackAnimation extends LivingEntity implements P
             this.bettermobcombat$attackAnimation.speed.set(upswingSpeed, List.of(new TransmissionSpeedModifier.Gear(length * upswing, downwindSpeed), new TransmissionSpeedModifier.Gear(length, speed)));
             this.bettermobcombat$attackAnimation.mirror.setEnabled(mirror);
             CustomAnimationPlayer player = new CustomAnimationPlayer(copy.build(), 0);
-            player.setFirstPersonMode(CompatibilityFlags.firstPersonRender() ? FirstPersonMode.THIRD_PERSON_MODEL : FirstPersonMode.NONE);
+            // Mobs are never rendered in first person, so first-person model handling is irrelevant here.
+            player.setFirstPersonMode(FirstPersonMode.NONE);
             player.setFirstPersonConfiguration(this.bettermobcombat$firstPersonConfig(animatedHand));
             this.bettermobcombat$attackAnimation.base.replaceAnimationWithFade(AbstractFadeModifier.standardFadeIn(fadeIn, Ease.INOUTSINE), player);
         } catch (Exception e) {
