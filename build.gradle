@@ -78,13 +78,13 @@ dependencies {
     implementation files('lib/player-animation-lib-forge-2.0.4+1.21.1.jar')
     implementation files('lib/cloth-config-15.0.140-neoforge.jar')
 
-    // Mob Player Animator: the author's client-side companion mod that makes mobs implement Player Animator's
-    // IAnimatedPlayer (getAnimationStack). Required on the client for mob attack animations (declared side=CLIENT
-    // in neoforge.mods.toml). It loads as a mod on every dev run via runtimeOnly, which makes `runClient` work
-    // out of the box. NOTE: this unofficial NeoForge build is not server-safe (its @Mod touches client classes),
-    // so it crashes `runServer`; comment this line out when testing the dedicated server (a real server never
-    // ships this client-only mod, and the server was verified to run fine without it).
-    runtimeOnly files('lib/mobplayeranimator-neoforge-1.21.1-1.4.0.jar')
+    // Mob Player Animator: our own NeoForge fork (D:\mc\Mob-Player-Animator), which makes mobs implement Player
+    // Animator's IAnimatedPlayer (getAnimationStack). Required on the client for mob attack animations (declared
+    // side=CLIENT in neoforge.mods.toml). It loads as a mod on every dev run via runtimeOnly, which makes `runClient`
+    // work out of the box. Unlike the old unofficial 1.4.0 jar, this fork guards all client-only init behind
+    // Dist.CLIENT, so it is server-safe: it can stay on the classpath for `runServer` without crashing (though a real
+    // dedicated server never ships this client-only mod anyway).
+    runtimeOnly files('lib/mobplayeranimator-neoforge-1.21.1-1.4.1.jar')
 
     // MixinExtras is bundled by NeoForge (mixinextras-neoforge is on the compile classpath transitively).
 
@@ -92,12 +92,21 @@ dependencies {
     compileOnly files('lib/geckolib-neoforge-1.21.1-4.9.2.jar')
 
     // Third-party compat (optional at runtime for end users; our @Pseudo mixins apply only when the mod is present).
-    // Guard Villagers is hard-referenced by its mixin so it is needed at compile time, but is kept compileOnly:
-    // loading it in the dev client alongside Mob Player Animator triggers a crash inside Mob Player Animator's own
-    // (unrelated) Guard Villagers model-compat mixin, which doesn't match Guard Villagers 2.4.10. Our server-side
-    // Guard mixin was verified separately via runServer. MCA's mixin is @Pseudo (no imports) and MCA is self-contained.
+    // Guard Villagers is hard-referenced by its mixin so it is needed at compile time (compileOnly). It is now ALSO
+    // loaded at runtime in the dev client (runtimeOnly): our Mob Player Animator fork re-targeted its GuardModel compat
+    // mixin to Guard Villagers 2.4.10 (Guard moved to tallestegg.guardvillagers.common.entities), so loading GV
+    // alongside Mob Player Animator no longer crashes. MCA's mixin is @Pseudo (no imports) and MCA is self-contained.
     compileOnly files('lib/guardvillagers-2.4.10-1.21.1.jar')
+    runtimeOnly files('lib/guardvillagers-2.4.10-1.21.1.jar')
     runtimeOnly files('lib/mca-neoforge-7.7.22+1.21.1.jar')
+
+    // Entity Model Features + its Entity Texture Features dependency. Runtime-only: Better Mob Combat itself has no
+    // compile-time reference to them (the EMF integration lives in Mob Player Animator's EMFCompat), but they have to
+    // actually be loaded in the dev client to exercise that integration. Both declare side=CLIENT, so runServer
+    // ignores them. Note EMF only swaps in custom models when a CEM resource pack (e.g. Fresh Animations) is active -
+    // without one it loads but stays inert, so reproduce model bugs with such a pack enabled.
+    runtimeOnly files('lib/entity_model_features_neoforge_1.21.1-2.4.1.jar')
+    runtimeOnly files('lib/entity_texture_features_neoforge_1.21.1-6.2.9.jar')
 
     compileOnly "org.jetbrains:annotations:24.1.0"
 }

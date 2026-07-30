@@ -55,7 +55,9 @@ public class MobTargetFinder {
 
         boolean isSpinAttack = attack.angle() > 180.0;
         Vec3 size = WeaponHitBoxes.createHitbox(attack.hitbox(), attackRange, isSpinAttack);
-        OrientedBoundingBox obb = new OrientedBoundingBox(origin, size, mob.getXRot(), mob.getYRot());
+        // Aim by head yaw, not body yaw - see MobCombatHelper#getAttackYRot. Damage application has to use the
+        // same orientation as the range check that started the attack, or a mob starts a swing it cannot land.
+        OrientedBoundingBox obb = new OrientedBoundingBox(origin, size, mob.getXRot(), MobCombatHelper.getAttackYRot(mob));
         if (!isSpinAttack) {
             obb = obb.offsetAlongAxisZ(size.z / 2.0);
         }

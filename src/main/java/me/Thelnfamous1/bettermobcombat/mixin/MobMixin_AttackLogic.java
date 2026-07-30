@@ -385,12 +385,26 @@ public abstract class MobMixin_AttackLogic extends LivingEntity implements Entit
     }
      */
 
+    /**
+     * Widens vanilla's reach so a mob holding a long Better Combat weapon can engage from its real weapon range
+     * instead of vanilla's fixed ~0.83-block inflation of its own bounding box.
+     *
+     * <p>This must only ever widen. Unlike 1.20.1 - where the equivalent override lived inside a single
+     * {@code MeleeAttackGoal#canUse} inject - 1.21 funnels every melee path through
+     * {@link Mob#isWithinMeleeAttackRange}: {@code MeleeAttackGoal#canUse}, {@code MeleeAttackGoal#canPerformAttack},
+     * and the brain-based {@code MeleeAttack} behaviour all consult it. Returning {@code false} there is what
+     * caused mobs to lock up while aggro'd: {@code canUse}'s no-path fallback is this very method, so a mob
+     * standing next to its target failed the check, never started the goal, therefore never ran the goal's
+     * {@code setLookAt}, therefore never re-aimed - and stayed stuck aggro'd and inert forever. Falling through
+     * to vanilla on a negative keeps the goal alive; the Better Combat cone still gates the actual upswing in
+     * {@code MeleeAttackGoalMixin}.
+     */
     @Inject(method = "isWithinMeleeAttackRange", at = @At("HEAD"), cancellable = true)
     private void pre_isWithinMeleeAttackRange(LivingEntity target, CallbackInfoReturnable<Boolean> cir){
         MobCombatHelper.onHoldingBetterCombatWeapon((Mob) (Object)this, (m, wa) -> {
             AttackHand currentAttack = this.getCurrentAttack();
-            if(currentAttack != null){
-                cir.setReturnValue(MobCombatHelper.isWithinAttackRange(m, target, currentAttack.attack(), wa.attackRange()));
+            if(currentAttack != null && MobCombatHelper.isWithinAttackRange(m, target, currentAttack.attack(), wa.attackRange())){
+                cir.setReturnValue(true);
             }
         });
     }

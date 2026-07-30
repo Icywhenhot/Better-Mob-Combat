@@ -1,0 +1,10 @@
+{
+  "text.autoconfig.bettermobcombat.title": "Better Mob Combat",
+
+  "text.autoconfig.bettermobcombat.category.client": "Client",
+  "text.autoconfig.bettermobcombat.option.client.better_combat_mob_animations": "Better Combat Mob Animations",
+  "text.autoconfig.bettermobcombat.option.client.better_combat_mob_animations.@Tooltip[0]": "Whether mobs play Better Combat's weapon animations.",
+  "text.autoconfig.bettermobcombat.option.client.better_combat_mob_animations.@Tooltip[1]": "On: mobs use their weapon's attack animation and idle stance.",
+  "text.autoconfig.bettermobcombat.option.client.better_combat_mob_animations.@Tooltip[2]": "Off: mobs use their vanilla arm swing and vanilla pose.",
+  "text.autoconfig.bettermobcombat.option.client.better_combat_mob_animations.@Tooltip[3]": "Visual only - attack timing, reach and damage are unchanged."
+}

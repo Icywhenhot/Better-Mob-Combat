@@ -2,9 +2,10 @@ package me.Thelnfamous1.bettermobcombat;
 
 import me.Thelnfamous1.bettermobcombat.client.BetterMobCombatEvents;
 import me.Thelnfamous1.bettermobcombat.compatibility.BMCCompatibilityFlags;
+import me.Thelnfamous1.bettermobcombat.config.BMCClientConfig;
+import me.Thelnfamous1.bettermobcombat.config.BMCConfigWrapper;
 import me.Thelnfamous1.bettermobcombat.config.BMCServerConfig;
 import me.Thelnfamous1.bettermobcombat.config.BMCServerConfigHelper;
-import me.Thelnfamous1.bettermobcombat.config.BMCServerConfigWrapper;
 import me.Thelnfamous1.bettermobcombat.logic.MobAttackHelper;
 import me.Thelnfamous1.bettermobcombat.network.BMCNetwork;
 import me.shedaniel.autoconfig.AutoConfig;
@@ -26,6 +27,7 @@ public class BetterMobCombat {
 
     private static BMCServerConfig serverConfig;
     private static BMCServerConfigHelper serverConfigHelper;
+    private static BMCClientConfig clientConfig = new BMCClientConfig();
 
     private static String serverConfigSerialized = "";
 
@@ -38,20 +40,23 @@ public class BetterMobCombat {
         // your own abstraction layer. You can learn more about this in our provided services class. In this example
         // we have an interface in the common code and use a loader specific implementation to delegate our call to
         // the platform specific approach.
-        ConfigHolder<BMCServerConfigWrapper> configHolder = AutoConfig.register(BMCServerConfigWrapper.class, PartitioningSerializer.wrap(JanksonConfigSerializer::new));
-        configHolder.registerSaveListener(((ch, scw) -> onConfigUpdated(scw)));
+        ConfigHolder<BMCConfigWrapper> configHolder = AutoConfig.register(BMCConfigWrapper.class, PartitioningSerializer.wrap(JanksonConfigSerializer::new));
+        configHolder.registerSaveListener(((ch, cw) -> onConfigUpdated(cw)));
         // This does not run when the config is first loaded, have to manually update config below
-        configHolder.registerLoadListener(((ch, scw) -> onConfigUpdated(scw)));
-        // Manual server config update
+        configHolder.registerLoadListener(((ch, cw) -> onConfigUpdated(cw)));
+        // Manual config update
         updateServerConfig(configHolder.getConfig().server, false);
+        clientConfig = configHolder.getConfig().client;
 
         BetterMobCombatEvents.ATTACK_START.register((mob, attackHand) -> debugTriggeredAttack(mob, attackHand, MobAttackHelper::getAttackCooldownTicksCapped));
 
         BMCCompatibilityFlags.initialize();
     }
 
-    private static InteractionResult onConfigUpdated(BMCServerConfigWrapper scw) {
-        updateServerConfig(scw.server, true);
+    private static InteractionResult onConfigUpdated(BMCConfigWrapper cw) {
+        updateServerConfig(cw.server, true);
+        // Picked up live, so toggling an option in the mod-list config screen applies without a restart.
+        clientConfig = cw.client;
         BMCNetwork.syncServerConfig(); // Nothing should happen if the server has not started
         return InteractionResult.PASS;
     }
@@ -67,6 +72,19 @@ public class BetterMobCombat {
 
     public static BMCServerConfig getServerConfig() {
         return serverConfig;
+    }
+
+    public static BMCClientConfig getClientConfig() {
+        return clientConfig;
+    }
+
+    /**
+     * Whether this client should draw Better Combat weapon animations on mobs, or leave them to their vanilla
+     * animations. Client-only display preference - never gate attack timing, reach or damage on this, or the
+     * client and server will disagree about combat.
+     */
+    public static boolean areMobAnimationsEnabled() {
+        return clientConfig.better_combat_mob_animations;
     }
 
     public static void updateServerConfig(BMCServerConfig config, boolean log) {

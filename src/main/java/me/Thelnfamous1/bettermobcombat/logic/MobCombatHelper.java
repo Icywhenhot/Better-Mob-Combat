@@ -235,6 +235,24 @@ public class MobCombatHelper {
         return attribute.value().sanitizeValue(productValue);
     }
 
+    /**
+     * The yaw an attacker's weapon hitbox should be oriented by.
+     *
+     * <p>Better Combat orients a player's swing by {@link Entity#getYRot()}, which for a player is exactly where
+     * they are aiming. For a {@link Mob} it is not: {@code yRot} is only steered by {@code MoveControl} while the
+     * mob is actively walking somewhere ({@code BodyRotationControl#clientTick} copies {@code yRot} into
+     * {@code yBodyRot} only on the {@code isMoving()} branch). A mob that closes the distance and then stands
+     * still keeps a stale {@code yRot} pointing wherever it last walked, while its head - and the body you
+     * actually see rendered, {@code yBodyRot} - keep tracking the target.
+     *
+     * <p>Orienting the attack hitbox by {@code yRot} therefore aims the swing off to one side for any stationary
+     * mob, so it visibly faces its target and still never connects. Aim by head yaw instead, which is both what
+     * the mob is looking at and what the player sees it facing.
+     */
+    public static float getAttackYRot(LivingEntity attacker) {
+        return attacker instanceof Mob ? attacker.getYHeadRot() : attacker.getYRot();
+    }
+
     public static boolean isWithinAttackRange(LivingEntity mob, Entity target, WeaponAttributes.Attack attack, double attackRange) {
         Vec3 origin = MobTargetFinder.getInitialTracingPoint(mob);
         if (!MobAttackRangeExtensions.sources().isEmpty()) {
@@ -245,7 +263,7 @@ public class MobCombatHelper {
 
         boolean isSpinAttack = attack.angle() > 180.0;
         Vec3 size = WeaponHitBoxes.createHitbox(attack.hitbox(), attackRange, isSpinAttack);
-        OrientedBoundingBox obb = new OrientedBoundingBox(origin, size, mob.getXRot(), mob.getYRot());
+        OrientedBoundingBox obb = new OrientedBoundingBox(origin, size, mob.getXRot(), getAttackYRot(mob));
         if (!isSpinAttack) {
             obb = obb.offsetAlongAxisZ(size.z / 2.0);
         }

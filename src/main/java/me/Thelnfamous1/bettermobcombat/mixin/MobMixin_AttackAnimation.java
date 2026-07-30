@@ -13,6 +13,7 @@ import dev.kosmx.playerAnim.core.data.KeyframeAnimation;
 import dev.kosmx.playerAnim.core.util.Ease;
 import dev.kosmx.playerAnim.core.util.Vec3f;
 import dev.kosmx.playerAnim.impl.IAnimatedPlayer;
+import me.Thelnfamous1.bettermobcombat.BetterMobCombat;
 import me.Thelnfamous1.bettermobcombat.BetterMobCombatClient;
 import me.Thelnfamous1.bettermobcombat.api.MobAttackAnimation;
 import me.Thelnfamous1.bettermobcombat.logic.MobAttackHelper;
@@ -156,6 +157,17 @@ public abstract class MobMixin_AttackAnimation extends LivingEntity implements P
             return;
         }
         boolean isLeftHanded = this.isLeftHanded();
+        if (!BetterMobCombat.areMobAnimationsEnabled()) {
+            // Vanilla animations selected: drop the Better Combat weapon stance. Both our own model mixins and
+            // Mob Player Animator's only suppress the vanilla arm/swing logic while an animation is actually
+            // active, so clearing these hands the mob straight back to its vanilla pose.
+            this.bettermobcombat$clearWeaponPoses(isLeftHanded);
+            // Covers flipping the option mid-swing, so the mob does not sit frozen partway through an attack.
+            if (this.bettermobcombat$hasActiveAttackAnimation()) {
+                this.stopAttackAnimation(5.0F);
+            }
+            return;
+        }
         boolean hasActiveAttackAnimation = this.bettermobcombat$hasActiveAttackAnimation();
         ItemStack mainHandStack = this.getMainHandItem();
         if (!this.swinging && !this.isSwimming() && !this.isUsingItem() && !BMCPlatform.isCastingSpell(this) && !CrossbowItem.isCharged(mainHandStack)) {
@@ -189,11 +201,16 @@ public abstract class MobMixin_AttackAnimation extends LivingEntity implements P
             this.bettermobcombat$mainHandBodyPose.setPose(newMainHandPose, isLeftHanded);
             this.bettermobcombat$offHandBodyPose.setPose(newOffHandPose, isLeftHanded);
         } else {
-            this.bettermobcombat$mainHandBodyPose.setPose(null, isLeftHanded);
-            this.bettermobcombat$mainHandItemPose.setPose(null, isLeftHanded);
-            this.bettermobcombat$offHandBodyPose.setPose(null, isLeftHanded);
-            this.bettermobcombat$offHandItemPose.setPose(null, isLeftHanded);
+            this.bettermobcombat$clearWeaponPoses(isLeftHanded);
         }
+    }
+
+    @Unique
+    private void bettermobcombat$clearWeaponPoses(boolean isLeftHanded) {
+        this.bettermobcombat$mainHandBodyPose.setPose(null, isLeftHanded);
+        this.bettermobcombat$mainHandItemPose.setPose(null, isLeftHanded);
+        this.bettermobcombat$offHandBodyPose.setPose(null, isLeftHanded);
+        this.bettermobcombat$offHandItemPose.setPose(null, isLeftHanded);
     }
 
     @Override
@@ -246,7 +263,7 @@ public abstract class MobMixin_AttackAnimation extends LivingEntity implements P
 
     @Override
     public void playAttackAnimation(String name, AnimatedHand animatedHand, float length, float upswing) {
-        if(!this.level().isClientSide){
+        if(!this.level().isClientSide || !BetterMobCombat.areMobAnimationsEnabled()){
             return;
         }
         try {

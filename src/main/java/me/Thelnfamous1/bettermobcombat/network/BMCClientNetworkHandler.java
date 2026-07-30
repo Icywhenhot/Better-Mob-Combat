@@ -11,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -18,8 +19,20 @@ import net.minecraft.world.entity.Mob;
 public class BMCClientNetworkHandler {
     static void handleAttackAnimation(int mobId, String animationName, float length, AnimatedHand animatedHand, float upswing) {
         Entity entity = Minecraft.getInstance().level.getEntity(mobId);
-        if (entity instanceof LivingEntity) {
-            if (animationName.equals(Packets.AttackAnimation.StopSymbol)) {
+        if (entity instanceof LivingEntity living) {
+            boolean stop = animationName.equals(Packets.AttackAnimation.StopSymbol);
+            if (!BetterMobCombat.areMobAnimationsEnabled()) {
+                // Vanilla animations selected for this client. Better Combat's attack pipeline suppresses
+                // MeleeAttackGoal's own swing() call, so without this the mob would deal damage with no
+                // animation whatsoever. Client-side swing() just sets the local swing state - it only
+                // broadcasts a packet when called on a ServerLevel - which is exactly the vanilla arm swing,
+                // and keeps the whole option a per-client choice the server never has to know about.
+                if (!stop) {
+                    living.swing(animatedHand.isOffHand() ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND);
+                }
+                return;
+            }
+            if (stop) {
                 ((PlayerAttackAnimatable)entity).stopAttackAnimation(length);
             } else {
                 ((PlayerAttackAnimatable)entity).playAttackAnimation(animationName, animatedHand, length, upswing);
